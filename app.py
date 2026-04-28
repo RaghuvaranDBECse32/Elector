@@ -3,7 +3,7 @@ import vertexai
 from vertexai.generative_models import GenerativeModel
 
 # GCP Init
-PROJECT_ID = "your-project-id" 
+PROJECT_ID = "project-7eb55a30-5579-43cc-8d1" 
 vertexai.init(project=PROJECT_ID, location="us-central1")
 model = GenerativeModel("gemini-1.5-flash")
 
@@ -11,6 +11,7 @@ model = GenerativeModel("gemini-1.5-flash")
 st.set_page_config(page_title="ECI Assistant", layout="wide")
 
 # 3D Neumorphic CSS
+
 st.markdown("""
     <style>
     .main {
