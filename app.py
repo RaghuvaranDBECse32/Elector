@@ -1,83 +1,131 @@
 import streamlit as st
+import os
+from dotenv import load_dotenv
+
+# Gemini
+import google.generativeai as genai
+
+# Vertex
 import vertexai
 from vertexai.generative_models import GenerativeModel
 
-# GCP Init
-PROJECT_ID = "project-7eb55a30-5579-43cc-8d1" 
-vertexai.init(project=PROJECT_ID, location="us-central1")
-model = GenerativeModel("gemini-1.5-flash")
+# ---------------- LOAD ENV ----------------
+load_dotenv()
 
-# UI Configuration for Mobile + Desktop
-st.set_page_config(page_title="ECI Assistant", layout="wide")
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+PROJECT_ID = os.getenv("PROJECT_ID")
 
-# 3D Neumorphic CSS
+# ---------------- PAGE CONFIG ----------------
+st.set_page_config(page_title="ELECTOR AI", layout="wide")
 
+# ---------------- MODE TOGGLE ----------------
+st.sidebar.title("⚙️ AI Mode")
+mode = st.sidebar.radio("Select AI Backend", [
+    "Gemini API (Free)",
+    "Vertex AI (GCP)"
+])
+
+# ---------------- INIT MODELS ----------------
+if mode == "Gemini API (Free)":
+    genai.configure(api_key=GEMINI_API_KEY)
+    model = genai.GenerativeModel("gemini-1.5-flash")
+
+elif mode == "Vertex AI (GCP)":
+    vertexai.init(project=PROJECT_ID, location="us-central1")
+    model = GenerativeModel("gemini-1.5-flash")
+
+# ---------------- CSS ----------------
 st.markdown("""
-    <style>
-    .main {
-        background-color: #f0f2f5;
-    }
-    /* 3D Card Effect */
-    .stButton>button {
-        border-radius: 20px;
-        background: #f0f2f5;
-        box-shadow: 8px 8px 16px #d1d9e6, -8px -8px 16px #ffffff;
-        border: none;
-        transition: 0.3s;
-        color: #003366;
-        font-weight: bold;
-    }
-    .stButton>button:hover {
-        box-shadow: inset 6px 6px 12px #d1d9e6, inset -6px -6px 12px #ffffff;
-        color: #ff9933;
-    }
-    /* ECI Header Style */
-    .eci-header {
-        background: linear-gradient(90deg, #ff9933 0%, #ffffff 50%, #128807 100%);
-        padding: 10px;
-        border-radius: 15px;
-        text-align: center;
-        box-shadow: 0px 10px 20px rgba(0,0,0,0.1);
-        margin-bottom: 20px;
-    }
-    /* Mobile Responsiveness */
-    @media (max-width: 640px) {
-        .stChatMessage { width: 100% !important; }
-    }
-    </style>
-    <div class="eci-header">
-        <h1 style="color: #000080; margin:0;">भारत निर्वाचन आयोग</h1>
-        <p style="color: #000080; margin:0;">Election Commission of India - AI Assistant</p>
-    </div>
-    """, unsafe_allow_html=True)
+<style>
+.hero {
+    padding: 30px;
+    border-radius: 20px;
+    background: linear-gradient(135deg,#0f2027,#203a43,#2c5364);
+    color: white;
+    text-align: center;
+}
+.card {
+    padding:20px;
+    border-radius:20px;
+    background: rgba(255,255,255,0.08);
+    backdrop-filter: blur(10px);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+    color:white;
+}
+</style>
+""", unsafe_allow_html=True)
 
-# App Content
-col1, col2 = st.columns([1, 2])
+# ---------------- HERO ----------------
+st.markdown("""
+<div class="hero">
+<h1>🗳️ ELECTOR AI</h1>
+<p>Dual AI Mode: Gemini + Vertex</p>
+</div>
+""", unsafe_allow_html=True)
 
-with col1:
-    st.markdown("### 🛠️ Quick Actions")
-    if st.button("Check Registration Status"):
-        st.info("Directing to National Voters' Service Portal...")
-    if st.button("Find My Polling Station"):
-        st.info("Locating nearest booth...")
+# ---------------- NAV ----------------
+page = st.sidebar.radio("Navigate", [
+    "🏠 Home",
+    "💬 Chat",
+    "🧠 Quiz"
+])
 
-with col2:
-    if "messages" not in st.session_state:
-        st.session_state.messages = []
+# ---------------- AI FUNCTION ----------------
+def generate(prompt):
+    if mode == "Gemini API (Free)":
+        return model.generate_content(prompt).text
+    else:
+        return model.generate_content(prompt).text
 
-    for message in st.session_state.messages:
-        with st.chat_message(message["role"]):
-            st.markdown(message["content"])
+# ---------------- HOME ----------------
+if page == "🏠 Home":
+    st.success(f"Current Mode: {mode}")
 
-    if prompt := st.chat_input("Ask me about the voting process..."):
-        st.session_state.messages.append({"role": "user", "content": prompt})
-        with st.chat_message("user"):
-            st.markdown(prompt)
+    col1, col2, col3 = st.columns(3)
+    col1.markdown('<div class="card">💬 AI Chat</div>', unsafe_allow_html=True)
+    col2.markdown('<div class="card">⚙️ Dual Backend</div>', unsafe_allow_html=True)
+    col3.markdown('<div class="card">🧠 Quiz</div>', unsafe_allow_html=True)
+
+# ---------------- CHAT ----------------
+elif page == "💬 Chat":
+    st.title("💬 ELECTOR AI")
+
+    if "chat" not in st.session_state:
+        st.session_state.chat = []
+
+    for msg in st.session_state.chat:
+        with st.chat_message(msg["role"]):
+            st.markdown(msg["content"])
+
+    prompt = st.chat_input("Ask about elections...")
+
+    if prompt:
+        st.session_state.chat.append({"role": "user", "content": prompt})
 
         with st.chat_message("assistant"):
-            # Dynamic reasoning context
-            full_prompt = f"System: You are an official ECI assistant. Be formal, neutral, and accurate. User: {prompt}"
-            response = model.generate_content(full_prompt)
-            st.markdown(response.text)
-            st.session_state.messages.append({"role": "assistant", "content": response.text})
-          
+            response = generate(
+                f"You are Election Commission assistant. {prompt}"
+            )
+            st.markdown(response)
+
+        st.session_state.chat.append({
+            "role": "assistant",
+            "content": response
+        })
+
+# ---------------- QUIZ ----------------
+elif page == "🧠 Quiz":
+    score = 0
+
+    q1 = st.radio("First step?", ["Counting", "Registration", "Result"])
+    if q1 == "Registration":
+        score += 1
+
+    q2 = st.radio("Who conducts elections?", ["ECI", "Police", "Court"])
+    if q2 == "ECI":
+        score += 1
+
+    if st.button("Submit"):
+        st.success(f"Score: {score}/2")
+        if score == 2:
+            st.balloons()
