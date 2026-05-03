@@ -1,5 +1,8 @@
-FROM python:3.11
+FROM python:3.11-slim
 WORKDIR /app
-COPY . .
-RUN pip install flask google-generativeai firebase-admin
-CMD ["python", "app.py"]
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+COPY app.py .
+EXPOSE 8080
+ENV PORT=8080
+CMD ["gunicorn", "app:app", "--bind", "0.0.0.0:8080", "--workers", "2"]
